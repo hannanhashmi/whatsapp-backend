@@ -13,7 +13,12 @@ const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const DASHBOARD_WEBHOOK = process.env.DASHBOARD_WEBHOOK;
 const N8N_WEBHOOK = process.env.N8N_WEBHOOK;
 
-// Webhook verification
+// ✅ Root route for dashboard health check
+app.get("/", (req, res) => {
+  res.status(200).send({ status: "ok" });
+});
+
+// Webhook verification for Meta
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -25,7 +30,7 @@ app.get("/webhook", (req, res) => {
   res.sendStatus(403);
 });
 
-// Receive WhatsApp messages
+// Receive WhatsApp messages and forward
 app.post("/webhook", async (req, res) => {
   try {
     const message = req.body.entry?.[0].changes?.[0].value.messages?.[0];
@@ -80,3 +85,4 @@ app.post("/send", async (req, res) => {
 });
 
 app.listen(3000, () => console.log("Backend running on port 3000"));
+
