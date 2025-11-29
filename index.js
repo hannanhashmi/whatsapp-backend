@@ -7,23 +7,29 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
+// 🔐 ENV variables
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
-const DASHBOARD_WEBHOOK = process.env.DASHBOARD_WEBHOOK;
-const N8N_WEBHOOK = process.env.N8N_WEBHOOK;
 
-// ✅ Root route for basic health check
+// 🟦 Your custom webhook endpoints
+const DASHBOARD_WEBHOOK = process.env.DASHBOARD_WEBHOOK; // optional
+const N8N_WEBHOOK = process.env.N8N_WEBHOOK; // optional
+
+// ------------------------------------------------------
+// ✅ HEALTH CHECK ROUTES
+// ------------------------------------------------------
 app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// ✅ Dashboard-required /test route
 app.get("/test", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// Webhook verification for Meta
+// ------------------------------------------------------
+// ✅ META WEBHOOK VERIFICATION (IMPORTANT)
+// ------------------------------------------------------
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -35,34 +41,53 @@ app.get("/webhook", (req, res) => {
   res.sendStatus(403);
 });
 
-// Receive WhatsApp messages and forward
+// ------------------------------------------------------
+// ✅ MAIN WEBHOOK RECEIVER → FORWARD TO N8N + DASHBOARD
+// ------------------------------------------------------
 app.post("/webhook", async (req, res) => {
   try {
-    const message = req.body.entry?.[0].changes?.[0].value.messages?.[0];
-    if (message) {
-      const msg = {
-        from: message.from,
-        text: message.text?.body || "",
-        timestamp: message.timestamp,
-      };
+    const fullBody = req.body;
 
-      if (DASHBOARD_WEBHOOK) {
-        await axios.post(DASHBOARD_WEBHOOK, msg);
-      }
-
-      if (N8N_WEBHOOK) {
-        await axios.post(N8N_WEBHOOK, msg);
+    // ✔ forward full JSON to Dashboard (optional)
+    if (DASHBOARD_WEBHOOK) {
+      try {
+        await axios.post(DASHBOARD_WEBHOOK, fullBody);
+      } catch (err) {
+        console.error("Dashboard Webhook Error:", err.message);
       }
     }
 
-    res.sendStatus(200);
+    // ✔ forward full JSON to n8n (recommended)
+    if (N8N_WEBHOOK) {
+      try {
+        await axios.post(N8N_WEBHOOK, fullBody);
+      } catch (err) {
+        console.error("N8N Webhook Error:", err.message);
+      }
+    }
+
+    // ------------------------------------------------------
+    // OPTIONAL: PARSED MESSAGE EXTRACTION (if needed later)
+    // ------------------------------------------------------
+    const message = fullBody.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    if (message) {
+      console.log("Incoming WhatsApp Message:", {
+        from: message.from,
+        text: message.text?.body,
+      });
+    }
+
+    return res.sendStatus(200);
+
   } catch (err) {
-    console.log("WEBHOOK ERR:", err.message);
-    res.sendStatus(500);
+    console.error("WEBHOOK ERROR:", err.message);
+    return res.sendStatus(500);
   }
 });
 
-// Send message to WhatsApp
+// ------------------------------------------------------
+// ✅ SEND MESSAGE API → WhatsApp Cloud API
+// ------------------------------------------------------
 app.post("/send", async (req, res) => {
   const { to, message } = req.body;
 
@@ -83,11 +108,15 @@ app.post("/send", async (req, res) => {
     );
 
     res.json(response.data);
+
   } catch (err) {
-    console.log("SEND ERROR:", err.response?.data);
-    res.status(500).json(err.response?.data);
+    console.error("SEND ERROR:", err.response?.data || err.message);
+    res.status(500).json(err.response?.data || { error: err.message });
   }
 });
 
+// ------------------------------------------------------
+// START SERVER
+// ------------------------------------------------------
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("Backend running on port " + PORT));
+app.listen(PORT, () => console.log("🔥 Backend running on port " + PORT));
