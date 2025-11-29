@@ -19,12 +19,18 @@ const N8N_WEBHOOK = process.env.N8N_WEBHOOK; // optional
 // ------------------------------------------------------
 // ✅ HEALTH CHECK ROUTES
 // ------------------------------------------------------
-app.get("/", (req, res) => {
+app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-app.get("/test", (req, res) => {
-  res.status(200).json({ status: "ok" });
+// DEFAULT HOME ROUTE
+app.get("/", (req, res) => {
+  res.send("WhatsApp Backend Running");
+});
+
+// SERVER LISTEN
+app.listen(3000, () => {
+  console.log("Server is running on port 3000");
 });
 
 // ------------------------------------------------------
