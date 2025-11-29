@@ -13,9 +13,14 @@ const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const DASHBOARD_WEBHOOK = process.env.DASHBOARD_WEBHOOK;
 const N8N_WEBHOOK = process.env.N8N_WEBHOOK;
 
-// ✅ Root route for dashboard health check
+// ✅ Root route for basic health check
 app.get("/", (req, res) => {
-  res.status(200).send({ status: "ok" });
+  res.status(200).json({ status: "ok" });
+});
+
+// ✅ Dashboard-required /test route
+app.get("/test", (req, res) => {
+  res.status(200).json({ status: "ok" });
 });
 
 // Webhook verification for Meta
@@ -84,7 +89,5 @@ app.post("/send", async (req, res) => {
   }
 });
 
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Backend running on port " + PORT));
-
